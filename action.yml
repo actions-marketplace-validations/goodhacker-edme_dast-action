@@ -1,5 +1,5 @@
 name: GoodHacker DAST scan
-description: Lanza un escaneo DAST de GoodHacker sobre una aplicación registrada y hace fallar el job según los criterios.
+description: Run a GoodHacker DAST scan on a registered web app or API and fail the build on your security criteria.
 author: GoodHacker
 branding:
   icon: shield
@@ -7,96 +7,96 @@ branding:
 
 inputs:
   api-url:
-    description: URL base de la API pública (…/dast/api/v1)
+    description: Base URL of the GoodHacker public API (ends in /dast/api/v1)
     required: true
   client-id:
-    description: Client ID de un cliente de API de GoodHacker (recomendado)
+    description: Client ID of a GoodHacker API client (recommended)
     required: false
   client-secret:
-    description: Secreto del cliente de API
+    description: Secret of the API client
     required: false
   username:
-    description: Alternativa al cliente de API (Basic). No sirve con MFA.
+    description: Username, as an alternative to an API client (Basic authentication). Not valid with MFA.
     required: false
   password:
-    description: Contraseña del usuario
+    description: User password
     required: false
   webapp-id:
-    description: ID de la aplicación registrada
+    description: ID of the registered application
     required: false
   webapp-name:
-    description: Nombre exacto de la aplicación (en lugar del ID)
+    description: Exact name of the application (instead of the ID)
     required: false
   scan-type:
-    description: vulnerability o discovery
+    description: vulnerability or discovery
     default: vulnerability
   profile-id:
-    description: Perfil de opciones (por defecto, el de la app)
+    description: Option profile ID (default, the application's)
     required: false
   auth-record-id:
-    description: Registro de autenticación (por defecto, el de la app)
+    description: Authentication record ID (default, the application's)
     required: false
   name:
-    description: Nombre del escaneo (por defecto, «workflow #run fecha»)
+    description: Scan name (default, "workflow #run date")
     required: false
   name-template:
-    description: Plantilla del nombre; variables job, build, branch, commit, platform, webapp, timestamp
+    description: Scan name template; variables job, build, branch, commit, platform, webapp, timestamp
     required: false
   wait:
-    description: Esperar a que termine el escaneo
+    description: Wait for the scan to finish
     default: "true"
   poll-interval:
-    description: Segundos entre consultas del estado
+    description: Seconds between status checks
     default: "30"
   timeout:
-    description: Segundos máximos de espera
+    description: Maximum wait in seconds
     default: "14400"
   cancel-on-timeout:
-    description: Cancelar el escaneo si se agota la espera
+    description: Cancel the scan when the wait times out
     default: "false"
   fail-on-severity:
-    description: Falla si hay algún hallazgo de esta severidad o superior (critical, high, medium, low, info)
+    description: Fail if there is any finding of this severity or higher (critical, high, medium, low, info)
     required: false
   max-count:
-    description: Máximos por severidad, p. ej. «critical=0,high=5»
+    description: Maximum findings per severity, e.g. "critical=0,high=5"
     required: false
   fail-on-detection:
-    description: IDs de detección que hacen fallar la build, separados por comas
+    description: Comma-separated detection IDs that fail the build
     required: false
   exclude-detection:
-    description: IDs de detección que no cuentan para ningún criterio
+    description: Comma-separated detection IDs that do not count towards any criterion
     required: false
   fail-on-scan-error:
-    description: Fallar si el escaneo no termina o termina sin resultados
+    description: Fail if the scan does not finish or finishes without results
     default: "false"
   report:
-    description: Informe del escaneo adjunto (pdf o none)
+    description: Scan report to attach (pdf or none)
     default: pdf
   output-dir:
-    description: Carpeta de resultados
+    description: Results folder
     default: ghdast-results
   upload-artifacts:
-    description: Adjuntar los resultados a la ejecución
+    description: Upload the results as a workflow artifact
     default: "true"
   artifact-name:
-    description: Nombre del artefacto
+    description: Artifact name
     default: ghdast-results
 
 outputs:
   scan-id:
-    description: ID del escaneo
+    description: Scan ID
     value: ${{ steps.scan.outputs.scan_id }}
   scan-state:
-    description: Estado final del escaneo
+    description: Final scan state
     value: ${{ steps.scan.outputs.scan_state }}
   passed:
-    description: true si la build pasa los criterios
+    description: true if the build meets the criteria
     value: ${{ steps.scan.outputs.passed }}
   result-json:
-    description: Ruta del result.json
+    description: Path of result.json
     value: ${{ steps.scan.outputs.result_json }}
   report-pdf:
-    description: Ruta del informe PDF
+    description: Path of the PDF report
     value: ${{ steps.scan.outputs.report_pdf }}
 
 runs:
