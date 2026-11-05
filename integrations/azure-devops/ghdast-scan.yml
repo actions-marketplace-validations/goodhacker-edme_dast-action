@@ -1,0 +1,85 @@
+# Plantilla de pasos de Azure DevOps para GoodHacker DAST (CICD-09, CICD-13).
+#
+# Uso en azure-pipelines.yml (con esta plantilla en el repositorio o en un repositorio de plantillas):
+#   steps:
+#     - template: ghdast-scan.yml
+#       parameters:
+#         webappId: 12
+#         args: --fail-on-severity high
+#         createWorkItems: true        # opcional: un Bug por hallazgo high o superior
+#
+# Variables secretas del pipeline: GH_DAST_API_URL, GH_DAST_CLIENT_ID, GH_DAST_CLIENT_SECRET.
+# Para crear elementos de trabajo, la identidad del build necesita permiso para crearlos
+# ("Project Collection Build Service" con "Create work items").
+
+parameters:
+  - name: webappId
+    type: string
+    default: ""
+  - name: webappName
+    type: string
+    default: ""
+  - name: args
+    type: string
+    default: ""
+  - name: createWorkItems
+    type: boolean
+    default: false
+  - name: workItemType
+    type: string
+    default: Bug
+  - name: workItemMinSeverity
+    type: string
+    default: high
+  - name: cliSha256
+    type: string
+    default: ""
+
+steps:
+  - task: Bash@3
+    displayName: GoodHacker DAST
+    inputs:
+      targetType: inline
+      script: |
+        set -e
+        python3 -c "import urllib.request,os;u=os.environ['GH_DAST_API_URL'].rstrip('/').rsplit('/',1)[0]+'/cli/ghdast.py';urllib.request.urlretrieve(u,'ghdast.py')"
+        if [ -n "${{ parameters.cliSha256 }}" ]; then echo "${{ parameters.cliSha256 }}  ghdast.py" | sha256sum -c -; fi
+        set +e
+        if [ -n "${{ parameters.webappId }}" ]; then
+          python3 ghdast.py scan --webapp-id "${{ parameters.webappId }}" ${{ parameters.args }} --output-dir "$(Build.ArtifactStagingDirectory)/ghdast"
+        else
+          python3 ghdast.py scan --webapp-name "${{ parameters.webappName }}" ${{ parameters.args }} --output-dir "$(Build.ArtifactStagingDirectory)/ghdast"
+        fi
+        code=$?
+        echo "##vso[task.setvariable variable=GHDAST_EXIT]$code"
+        exit 0
+    env:
+      GH_DAST_API_URL: $(GH_DAST_API_URL)
+      GH_DAST_CLIENT_ID: $(GH_DAST_CLIENT_ID)
+      GH_DAST_CLIENT_SECRET: $(GH_DAST_CLIENT_SECRET)
+
+  - ${{ if eq(parameters.createWorkItems, true) }}:
+    - task: Bash@3
+      displayName: GoodHacker DAST · elementos de trabajo
+      condition: always()
+      inputs:
+        targetType: inline
+        script: |
+          python3 ghdast.py azure-workitems --result "$(Build.ArtifactStagingDirectory)/ghdast/result.json" \
+            --type "${{ parameters.workItemType }}" --min-severity "${{ parameters.workItemMinSeverity }}"
+      env:
+        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+  - task: PublishPipelineArtifact@1
+    displayName: GoodHacker DAST · resultados
+    condition: always()
+    inputs:
+      targetPath: $(Build.ArtifactStagingDirectory)/ghdast
+      artifact: ghdast-results
+
+  - task: Bash@3
+    displayName: GoodHacker DAST · criterios
+    condition: always()
+    inputs:
+      targetType: inline
+      script: exit "${GHDAST_EXIT:-3}"

@@ -1,0 +1,158 @@
+name: GoodHacker DAST scan
+description: Lanza un escaneo DAST de GoodHacker sobre una aplicación registrada y hace fallar el job según los criterios.
+author: GoodHacker
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  api-url:
+    description: URL base de la API pública (…/dast/api/v1)
+    required: true
+  client-id:
+    description: Client ID de un cliente de API de GoodHacker (recomendado)
+    required: false
+  client-secret:
+    description: Secreto del cliente de API
+    required: false
+  username:
+    description: Alternativa al cliente de API (Basic). No sirve con MFA.
+    required: false
+  password:
+    description: Contraseña del usuario
+    required: false
+  webapp-id:
+    description: ID de la aplicación registrada
+    required: false
+  webapp-name:
+    description: Nombre exacto de la aplicación (en lugar del ID)
+    required: false
+  scan-type:
+    description: vulnerability o discovery
+    default: vulnerability
+  profile-id:
+    description: Perfil de opciones (por defecto, el de la app)
+    required: false
+  auth-record-id:
+    description: Registro de autenticación (por defecto, el de la app)
+    required: false
+  name:
+    description: Nombre del escaneo (por defecto, «workflow #run fecha»)
+    required: false
+  name-template:
+    description: Plantilla del nombre; variables job, build, branch, commit, platform, webapp, timestamp
+    required: false
+  wait:
+    description: Esperar a que termine el escaneo
+    default: "true"
+  poll-interval:
+    description: Segundos entre consultas del estado
+    default: "30"
+  timeout:
+    description: Segundos máximos de espera
+    default: "14400"
+  cancel-on-timeout:
+    description: Cancelar el escaneo si se agota la espera
+    default: "false"
+  fail-on-severity:
+    description: Falla si hay algún hallazgo de esta severidad o superior (critical, high, medium, low, info)
+    required: false
+  max-count:
+    description: Máximos por severidad, p. ej. «critical=0,high=5»
+    required: false
+  fail-on-detection:
+    description: IDs de detección que hacen fallar la build, separados por comas
+    required: false
+  exclude-detection:
+    description: IDs de detección que no cuentan para ningún criterio
+    required: false
+  fail-on-scan-error:
+    description: Fallar si el escaneo no termina o termina sin resultados
+    default: "false"
+  report:
+    description: Informe del escaneo adjunto (pdf o none)
+    default: pdf
+  output-dir:
+    description: Carpeta de resultados
+    default: ghdast-results
+  upload-artifacts:
+    description: Adjuntar los resultados a la ejecución
+    default: "true"
+  artifact-name:
+    description: Nombre del artefacto
+    default: ghdast-results
+
+outputs:
+  scan-id:
+    description: ID del escaneo
+    value: ${{ steps.scan.outputs.scan_id }}
+  scan-state:
+    description: Estado final del escaneo
+    value: ${{ steps.scan.outputs.scan_state }}
+  passed:
+    description: true si la build pasa los criterios
+    value: ${{ steps.scan.outputs.passed }}
+  result-json:
+    description: Ruta del result.json
+    value: ${{ steps.scan.outputs.result_json }}
+  report-pdf:
+    description: Ruta del informe PDF
+    value: ${{ steps.scan.outputs.report_pdf }}
+
+runs:
+  using: composite
+  steps:
+    - id: scan
+      shell: bash
+      env:
+        GH_DAST_API_URL: ${{ inputs.api-url }}
+        GH_DAST_CLIENT_ID: ${{ inputs.client-id }}
+        GH_DAST_CLIENT_SECRET: ${{ inputs.client-secret }}
+        GH_DAST_USERNAME: ${{ inputs.username }}
+        GH_DAST_PASSWORD: ${{ inputs.password }}
+        IN_WEBAPP_ID: ${{ inputs.webapp-id }}
+        IN_WEBAPP_NAME: ${{ inputs.webapp-name }}
+        IN_SCAN_TYPE: ${{ inputs.scan-type }}
+        IN_PROFILE_ID: ${{ inputs.profile-id }}
+        IN_AUTH_RECORD_ID: ${{ inputs.auth-record-id }}
+        IN_NAME: ${{ inputs.name }}
+        IN_NAME_TEMPLATE: ${{ inputs.name-template }}
+        IN_WAIT: ${{ inputs.wait }}
+        IN_POLL: ${{ inputs.poll-interval }}
+        IN_TIMEOUT: ${{ inputs.timeout }}
+        IN_CANCEL: ${{ inputs.cancel-on-timeout }}
+        IN_SEVERITY: ${{ inputs.fail-on-severity }}
+        IN_MAX_COUNT: ${{ inputs.max-count }}
+        IN_FAIL_DET: ${{ inputs.fail-on-detection }}
+        IN_EXCL_DET: ${{ inputs.exclude-detection }}
+        IN_SCAN_ERROR: ${{ inputs.fail-on-scan-error }}
+        IN_REPORT: ${{ inputs.report }}
+        IN_OUT: ${{ inputs.output-dir }}
+      run: |
+        args=(scan --scan-type "$IN_SCAN_TYPE" --poll-interval "$IN_POLL" --timeout "$IN_TIMEOUT"
+              --report "$IN_REPORT" --output-dir "$IN_OUT")
+        if [ -n "$IN_WEBAPP_ID" ]; then args+=(--webapp-id "$IN_WEBAPP_ID"); else args+=(--webapp-name "$IN_WEBAPP_NAME"); fi
+        [ -n "$IN_PROFILE_ID" ] && args+=(--profile-id "$IN_PROFILE_ID")
+        [ -n "$IN_AUTH_RECORD_ID" ] && args+=(--auth-record-id "$IN_AUTH_RECORD_ID")
+        [ -n "$IN_NAME" ] && args+=(--name "$IN_NAME")
+        [ -n "$IN_NAME_TEMPLATE" ] && args+=(--name-template "$IN_NAME_TEMPLATE")
+        [ "$IN_WAIT" = "false" ] && args+=(--no-wait)
+        [ "$IN_CANCEL" = "true" ] && args+=(--cancel-on-timeout)
+        [ -n "$IN_SEVERITY" ] && args+=(--fail-on-severity "$IN_SEVERITY")
+        [ -n "$IN_MAX_COUNT" ] && args+=(--max-count "$IN_MAX_COUNT")
+        [ -n "$IN_FAIL_DET" ] && args+=(--fail-on-detection "$IN_FAIL_DET")
+        [ -n "$IN_EXCL_DET" ] && args+=(--exclude-detection "$IN_EXCL_DET")
+        [ "$IN_SCAN_ERROR" = "true" ] && args+=(--fail-on-scan-error)
+        set +e
+        python3 "$GITHUB_ACTION_PATH/ghdast.py" "${args[@]}"
+        echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+    - if: always() && inputs.upload-artifacts == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.output-dir }}
+        if-no-files-found: ignore
+    - shell: bash
+      env:
+        CODE: ${{ steps.scan.outputs.exit_code }}
+      run: exit "${CODE:-3}"

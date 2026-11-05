@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Meta-runner de TeamCity para GoodHacker DAST (CICD-13).
+     Instalación: Project → Meta-Runners → Upload Meta-Runner (este fichero).
+     Parámetros secretos: crea env.GH_DAST_CLIENT_ID y env.GH_DAST_CLIENT_SECRET como "Password"
+     en el proyecto. El agente necesita python3. Los resultados se publican como artefactos y
+     ghdast marca el estado de la build con un mensaje de servicio. -->
+<meta-runner name="GoodHacker DAST scan">
+  <description>Lanza un escaneo DAST de GoodHacker y aplica los criterios de la build</description>
+  <settings>
+    <parameters>
+      <param name="env.GH_DAST_API_URL" value="" spec="text description='URL base de la API (…/dast/api/v1)' validationMode='not_empty' display='normal'" />
+      <param name="ghdast.webapp.id" value="" spec="text description='ID de la aplicación' validationMode='not_empty' display='normal'" />
+      <param name="ghdast.args" value="--fail-on-severity high" spec="text description='Criterios y opciones de ghdast scan' display='normal'" />
+      <param name="ghdast.cli.sha256" value="" spec="text description='SHA-256 esperado de la CLI (opcional)' display='normal'" />
+    </parameters>
+    <build-runners>
+      <runner name="GoodHacker DAST" type="simpleRunner">
+        <parameters>
+          <param name="script.content"><![CDATA[#!/bin/sh
+set -e
+python3 -c "import urllib.request,os;u=os.environ['GH_DAST_API_URL'].rstrip('/').rsplit('/',1)[0]+'/cli/ghdast.py';urllib.request.urlretrieve(u,'ghdast.py')"
+if [ -n "%ghdast.cli.sha256%" ]; then echo "%ghdast.cli.sha256%  ghdast.py" | sha256sum -c -; fi
+set +e
+python3 ghdast.py scan --webapp-id "%ghdast.webapp.id%" %ghdast.args%
+code=$?
+echo "##teamcity[publishArtifacts 'ghdast-results => ghdast-results']"
+exit $code]]></param>
+          <param name="teamcity.step.mode" value="default" />
+          <param name="use.custom.script" value="true" />
+        </parameters>
+      </runner>
+    </build-runners>
+    <requirements />
+  </settings>
+</meta-runner>

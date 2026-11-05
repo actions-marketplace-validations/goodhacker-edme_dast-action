@@ -1,0 +1,36 @@
+# Bamboo Specs (YAML) de ejemplo para GoodHacker DAST (CICD-13).
+#
+# Variables del plan (las secretas con "password" en el nombre se ocultan en los logs):
+#   ghdast_api_url, ghdast_client_id, ghdast_client_password (el secreto del cliente de API)
+# El agente necesita python3.
+---
+version: 2
+plan:
+  project-key: SEC
+  key: DAST
+  name: GoodHacker DAST
+stages:
+  - DAST:
+      jobs:
+        - Scan
+Scan:
+  tasks:
+    - script:
+        interpreter: SHELL
+        scripts:
+          - |
+            export GH_DAST_API_URL="${bamboo_ghdast_api_url}"
+            export GH_DAST_CLIENT_ID="${bamboo_ghdast_client_id}"
+            export GH_DAST_CLIENT_SECRET="${bamboo_ghdast_client_password}"
+            python3 -c "import urllib.request,os;u=os.environ['GH_DAST_API_URL'].rstrip('/').rsplit('/',1)[0]+'/cli/ghdast.py';urllib.request.urlretrieve(u,'ghdast.py')"
+            python3 ghdast.py scan --webapp-id 12 --fail-on-severity high
+  artifacts:
+    - name: ghdast-results
+      location: ghdast-results
+      pattern: '**/*'
+      required: false
+      shared: false
+variables:
+  ghdast_api_url: https://<api>/dast/api/v1
+  ghdast_client_id: ""
+  ghdast_client_password: ""
