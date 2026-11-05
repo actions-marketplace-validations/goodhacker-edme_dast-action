@@ -1,23 +1,27 @@
-# GoodHacker DAST para CI/CD
+# GoodHacker DAST for CI/CD
 
-Lanza un escaneo DAST de [GoodHacker](https://goodhacker.com.co) sobre una aplicación registrada, espera a que termine, decide si la build pasa o falla según tus criterios y adjunta los resultados a la ejecución.
+*[Leer en español](README.es.md)*
 
-Incluye:
-- una **GitHub Action**;
-- **`ghdast.py`**, una CLI de un solo fichero que solo usa la librería estándar de Python 3.8 o posterior y funciona en cualquier runner con `python3`;
-- plantillas para **GitLab CI, Azure DevOps, Jenkins, TeamCity y Bamboo**.
+Runs a [GoodHacker](https://goodhacker.com.co) DAST scan against a registered web application or API, waits for it to finish, passes or fails the build based on your criteria, and attaches the results to the run.
 
-## Credenciales
+Includes:
+- a **GitHub Action**;
+- **`ghdast.py`**, a single-file CLI that only uses the Python 3.8+ standard library, so it runs on any runner with `python3`;
+- templates for **GitLab CI, Azure DevOps, Jenkins, TeamCity and Bamboo**.
 
-1. En GoodHacker, ve a **Análisis de vulnerabilidades → API** y crea un cliente de API.
-   - Guarda el secreto: solo se muestra una vez.
-   - El cliente actúa con los permisos de tu usuario. Para lanzar escaneos necesitas ese permiso; un usuario de solo lectura recibe 403.
-2. Configura estos secretos en tu CI:
-   - `GH_DAST_API_URL`: URL base de la API, que aparece en esa misma página (termina en `/dast/api/v1`).
-   - `GH_DAST_CLIENT_ID`: el client ID.
-   - `GH_DAST_CLIENT_SECRET`: el secreto.
+> The GoodHacker user interface and the action's messages are in Spanish.
 
-   En lugar del cliente de API puedes usar `GH_DAST_USERNAME` y `GH_DAST_PASSWORD` (autenticación Basic), salvo que tu cuenta tenga MFA.
+## Credentials
+
+1. In GoodHacker, go to **Análisis de vulnerabilidades → API** and create an API client.
+   - Store the secret: it is shown only once.
+   - The client acts with your user's permissions. Launching scans requires that permission; a read-only user gets 403.
+2. Add these secrets to your CI:
+   - `GH_DAST_API_URL`: the API base URL, shown on that same page (it ends in `/dast/api/v1`).
+   - `GH_DAST_CLIENT_ID`: the client ID.
+   - `GH_DAST_CLIENT_SECRET`: the secret.
+
+   Instead of an API client you can use `GH_DAST_USERNAME` and `GH_DAST_PASSWORD` (Basic authentication), unless your account uses MFA.
 
 ## GitHub Actions
 
@@ -31,22 +35,22 @@ Incluye:
     fail-on-severity: high
 ```
 
-- Los resultados se adjuntan como el artefacto `ghdast-results`.
-- El resumen aparece en la página del job.
-- Los outputs `scan-id`, `scan-state` y `passed` quedan disponibles para los pasos siguientes.
-- Los inputs equivalen a las opciones de la CLI; están todos en [action.yml](action.yml).
+- Results are attached as the `ghdast-results` artifact.
+- A summary is added to the job page.
+- The `scan-id`, `scan-state` and `passed` outputs are available to later steps.
+- Inputs mirror the CLI options; see [action.yml](action.yml) for the full list.
 
-## Otras plataformas
+## Other platforms
 
-| Plataforma | Plantilla |
+| Platform | Template |
 |---|---|
 | GitLab CI | [integrations/gitlab/ghdast.gitlab-ci.yml](integrations/gitlab/ghdast.gitlab-ci.yml) |
-| Azure DevOps (con elementos de trabajo) | [integrations/azure-devops/ghdast-scan.yml](integrations/azure-devops/ghdast-scan.yml) |
-| Jenkins (pipeline y freestyle) | [integrations/jenkins](integrations/jenkins/README.md) |
+| Azure DevOps (with work items) | [integrations/azure-devops/ghdast-scan.yml](integrations/azure-devops/ghdast-scan.yml) |
+| Jenkins (pipeline and freestyle) | [integrations/jenkins](integrations/jenkins/README.md) |
 | TeamCity | [integrations/teamcity/GhdastScan.xml](integrations/teamcity/GhdastScan.xml) |
 | Bamboo | [integrations/bamboo/bamboo-specs.yaml](integrations/bamboo/bamboo-specs.yaml) |
 
-Las plantillas descargan la CLI de tu instancia de GoodHacker (`…/dast/api/cli/ghdast.py`) y, si quieres, comprueban su SHA-256. También puedes usar el `ghdast.py` de este repositorio.
+The templates download the CLI from your GoodHacker instance (`…/dast/api/cli/ghdast.py`) and can verify its SHA-256. You can also use the `ghdast.py` in this repository.
 
 ## `ghdast scan`
 
@@ -55,63 +59,63 @@ python3 ghdast.py scan --webapp-id 12 --fail-on-severity high --max-count medium
     --exclude-detection GH-DAST-0040 --fail-on-scan-error
 ```
 
-| Opción | Efecto |
+| Option | Effect |
 |---|---|
-| `--webapp-id N` / `--webapp-name "Nombre"` | Aplicación que se escanea; debe estar registrada. Con el nombre, tiene que coincidir exactamente. |
-| `--scan-type vulnerability\|discovery` | Tipo de escaneo. Por defecto, `vulnerability`. |
-| `--profile-id`, `--auth-record-id` | Sustituyen los valores por defecto de la app. |
-| `--name`, `--name-template` | Nombre del escaneo. Ver la sección [Nombre del escaneo](#nombre-del-escaneo). |
-| `--no-wait` | Lanza el escaneo y sale con código 0, sin esperar a que termine. |
-| `--poll-interval S`, `--timeout S`, `--cancel-on-timeout` | Sondeo del estado, espera máxima y cancelación del escaneo si se agota. |
-| `--fail-on-severity SEV` | Falla si hay algún hallazgo de esa severidad o superior. |
-| `--max-count sev=N,…` | Falla si alguna severidad supera N hallazgos. |
-| `--fail-on-detection ID,…` | Falla si aparece alguna de esas detecciones. |
-| `--exclude-detection ID,…` | Esas detecciones no cuentan para ningún criterio. |
-| `--fail-on-scan-error` | Falla también si el escaneo no termina o termina sin resultados. Sin esta opción, ese caso pasa. |
-| `--report pdf\|none` | Adjunta el informe PDF del escaneo. Por defecto, `pdf`. |
-| `--output-dir DIR` | Carpeta de resultados. Por defecto, `ghdast-results`. |
+| `--webapp-id N` / `--webapp-name "Name"` | Application to scan; it must already be registered. The name must match exactly. |
+| `--scan-type vulnerability\|discovery` | Scan type. Default: `vulnerability`. |
+| `--profile-id`, `--auth-record-id` | Override the application's defaults. |
+| `--name`, `--name-template` | Scan name. See [Scan name](#scan-name). |
+| `--no-wait` | Launch the scan and exit with code 0 without waiting for it to finish. |
+| `--poll-interval S`, `--timeout S`, `--cancel-on-timeout` | Status polling, maximum wait, and cancelling the scan when the wait runs out. |
+| `--fail-on-severity SEV` | Fail if there is any finding of that severity or higher. |
+| `--max-count sev=N,…` | Fail if any severity exceeds N findings. |
+| `--fail-on-detection ID,…` | Fail if any of those detections appears. |
+| `--exclude-detection ID,…` | Those detections do not count towards any criterion. |
+| `--fail-on-scan-error` | Also fail if the scan does not finish or finishes without results. Without this option, that case passes. |
+| `--report pdf\|none` | Attach the scan's PDF report. Default: `pdf`. |
+| `--output-dir DIR` | Results folder. Default: `ghdast-results`. |
 
-Solo cuentan los hallazgos **detectados en este escaneo**. Los ignorados en la plataforma (falsos positivos o riesgo aceptado) no cuentan.
+Only findings **detected in this scan** count. Findings ignored in the platform (false positives or accepted risk) do not count.
 
-### Resultados
+### Results
 
-En `--output-dir` se escriben:
-- `result.json`: el escaneo, los conteos por severidad, los criterios aplicados, los motivos del fallo y la lista de hallazgos;
-- `report.pdf`: el informe del escaneo;
-- `status.txt`: una línea con el resultado.
+`--output-dir` contains:
+- `result.json`: the scan, counts per severity, the criteria applied, the reasons for failing and the list of findings;
+- `report.pdf`: the scan report;
+- `status.txt`: a one-line result.
 
-Además, según la plataforma:
-- **GitHub:** resumen del job y outputs del paso.
-- **Azure DevOps:** variables `GHDAST_SCAN_ID` y `GHDAST_PASSED`.
-- **TeamCity:** estado de la build.
+Depending on the platform, also:
+- **GitHub:** job summary and step outputs.
+- **Azure DevOps:** `GHDAST_SCAN_ID` and `GHDAST_PASSED` variables.
+- **TeamCity:** build status.
 
-### Códigos de salida
+### Exit codes
 
-| Código | Significado |
+| Code | Meaning |
 |---|---|
-| 0 | Pasa. |
-| 1 | No pasa los criterios. |
-| 2 | Error o timeout del escaneo; solo con `--fail-on-scan-error`. |
-| 3 | Error de configuración o de la API. |
+| 0 | Passed. |
+| 1 | Did not meet the criteria. |
+| 2 | Scan error or timeout; only with `--fail-on-scan-error`. |
+| 3 | Configuration or API error. |
 
-### Nombre del escaneo
+### Scan name
 
-Por defecto se genera como `trabajo #build fecha`. Se detectan automáticamente GitHub Actions, GitLab CI, Azure DevOps, Jenkins, TeamCity y Bamboo.
+By default it is generated as `job #build date`. GitHub Actions, GitLab CI, Azure DevOps, Jenkins, TeamCity and Bamboo are detected automatically.
 
-Con `--name-template` puedes usar las variables `job`, `build`, `branch`, `commit`, `platform`, `webapp` y `timestamp`. Por ejemplo: `--name-template "{webapp}-{branch}-{build}"`.
+`--name-template` accepts the variables `job`, `build`, `branch`, `commit`, `platform`, `webapp` and `timestamp`. For example: `--name-template "{webapp}-{branch}-{build}"`.
 
-## Azure DevOps: elementos de trabajo
+## Azure DevOps: work items
 
-`ghdast azure-workitems` crea un elemento de trabajo (por defecto, de tipo Bug) por cada hallazgo de severidad `--min-severity` o superior del `result.json`.
-- No crea duplicados: antes de crear uno, busca la etiqueta `ghdast-finding-<id>`.
-- Usa `System.AccessToken`.
-- La plantilla lo activa con `createWorkItems: true`.
+`ghdast azure-workitems` creates one work item (a Bug by default) for each finding in `result.json` at or above `--min-severity`.
+- It does not create duplicates: before creating one, it looks for the `ghdast-finding-<id>` tag.
+- It uses `System.AccessToken`.
+- The template enables it with `createWorkItems: true`.
 
-## Versiones
+## Versions
 
-- `@v1` recibe las correcciones y mejoras compatibles.
-- `@v1.x.y` fija una versión exacta.
+- `@v1` receives fixes and backward-compatible improvements.
+- `@v1.x.y` pins an exact version.
 
-## Licencia
+## License
 
 [MIT](LICENSE)
